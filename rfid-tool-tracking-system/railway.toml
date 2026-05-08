@@ -1,0 +1,15 @@
+# Railway deployment config for the API backend.
+# In Railway, set "Root Directory" to "/" (repo root).
+# The build command installs the whole pnpm workspace, then builds the API.
+# The start command runs the compiled API bundle.
+
+[build]
+builder = "nixpacks"
+buildCommand = "pnpm install --frozen-lockfile && pnpm --filter @workspace/api-server run build"
+
+[deploy]
+startCommand = "node --enable-source-maps ./artifacts/api-server/dist/index.mjs"
+healthcheckPath = "/api/healthz"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3

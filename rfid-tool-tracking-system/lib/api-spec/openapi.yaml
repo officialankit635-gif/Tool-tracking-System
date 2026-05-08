@@ -1,0 +1,713 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: RFID Tool Tracking System API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: tools
+    description: Tool management
+  - name: transactions
+    description: Issue/Return transactions
+  - name: scan
+    description: RFID inventory scan
+  - name: stats
+    description: Dashboard statistics
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterBody"
+      responses:
+        "201":
+          description: User registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginBody"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /tools:
+    get:
+      operationId: listTools
+      tags: [tools]
+      summary: List all tools
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [available, issued, missing]
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of tools
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Tool"
+    post:
+      operationId: createTool
+      tags: [tools]
+      summary: Create a new tool
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateToolBody"
+      responses:
+        "201":
+          description: Tool created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tool"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Tool ID already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /tools/{id}:
+    get:
+      operationId: getTool
+      tags: [tools]
+      summary: Get a tool by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Tool found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tool"
+        "404":
+          description: Tool not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateTool
+      tags: [tools]
+      summary: Update a tool
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateToolBody"
+      responses:
+        "200":
+          description: Tool updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tool"
+        "404":
+          description: Tool not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteTool
+      tags: [tools]
+      summary: Delete a tool
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Tool deleted
+        "404":
+          description: Tool not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /issue:
+    post:
+      operationId: issueTool
+      tags: [transactions]
+      summary: Issue a tool to a user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IssueToolBody"
+      responses:
+        "201":
+          description: Tool issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+        "400":
+          description: Tool not available or bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Tool or user not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /return:
+    post:
+      operationId: returnTool
+      tags: [transactions]
+      summary: Return a tool
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReturnToolBody"
+      responses:
+        "200":
+          description: Tool returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+        "400":
+          description: Tool is not currently issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Tool not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /transactions:
+    get:
+      operationId: listTransactions
+      tags: [transactions]
+      summary: List all transactions (issue/return history)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: toolId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: actionType
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [issue, return]
+      responses:
+        "200":
+          description: List of transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TransactionWithDetails"
+
+  /scan:
+    post:
+      operationId: inventoryScan
+      tags: [scan]
+      summary: Simulate RFID inventory scan
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScanBody"
+      responses:
+        "200":
+          description: Scan results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /stats:
+    get:
+      operationId: getStats
+      tags: [stats]
+      summary: Get dashboard statistics
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    RegisterBody:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+      required:
+        - name
+        - email
+        - password
+
+    LoginBody:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - email
+        - createdAt
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+      required:
+        - token
+        - user
+
+    Tool:
+      type: object
+      properties:
+        id:
+          type: integer
+        toolId:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+        status:
+          type: string
+          enum: [available, issued, missing]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - toolId
+        - name
+        - category
+        - status
+        - createdAt
+        - updatedAt
+
+    CreateToolBody:
+      type: object
+      properties:
+        toolId:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+        status:
+          type: string
+          enum: [available, issued, missing]
+      required:
+        - toolId
+        - name
+        - category
+
+    UpdateToolBody:
+      type: object
+      properties:
+        toolId:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+        status:
+          type: string
+          enum: [available, issued, missing]
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: integer
+        toolId:
+          type: integer
+        userId:
+          type: integer
+        actionType:
+          type: string
+          enum: [issue, return]
+        issueDate:
+          type: string
+          format: date-time
+        returnDate:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - toolId
+        - userId
+        - actionType
+        - issueDate
+        - createdAt
+
+    TransactionWithDetails:
+      type: object
+      properties:
+        id:
+          type: integer
+        toolId:
+          type: integer
+        userId:
+          type: integer
+        actionType:
+          type: string
+          enum: [issue, return]
+        issueDate:
+          type: string
+          format: date-time
+        returnDate:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        toolName:
+          type: string
+        toolIdentifier:
+          type: string
+        userName:
+          type: string
+      required:
+        - id
+        - toolId
+        - userId
+        - actionType
+        - issueDate
+        - createdAt
+        - toolName
+        - toolIdentifier
+        - userName
+
+    IssueToolBody:
+      type: object
+      properties:
+        toolId:
+          type: string
+          description: The RFID tool identifier (e.g. T001)
+        userId:
+          type: integer
+      required:
+        - toolId
+        - userId
+
+    ReturnToolBody:
+      type: object
+      properties:
+        toolId:
+          type: string
+          description: The RFID tool identifier (e.g. T001)
+      required:
+        - toolId
+
+    ScanBody:
+      type: object
+      properties:
+        scannedTools:
+          type: array
+          items:
+            type: string
+          description: Array of scanned RFID tool IDs
+      required:
+        - scannedTools
+
+    ScanResult:
+      type: object
+      properties:
+        correctTools:
+          type: array
+          items:
+            type: string
+        missingTools:
+          type: array
+          items:
+            type: string
+        extraTools:
+          type: array
+          items:
+            type: string
+        summary:
+          type: object
+          properties:
+            total:
+              type: integer
+            correct:
+              type: integer
+            missing:
+              type: integer
+            extra:
+              type: integer
+          required:
+            - total
+            - correct
+            - missing
+            - extra
+      required:
+        - correctTools
+        - missingTools
+        - extraTools
+        - summary
+
+    DashboardStats:
+      type: object
+      properties:
+        totalTools:
+          type: integer
+        availableTools:
+          type: integer
+        issuedTools:
+          type: integer
+        missingTools:
+          type: integer
+        totalTransactions:
+          type: integer
+        recentTransactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/TransactionWithDetails"
+        categoryBreakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryCount"
+      required:
+        - totalTools
+        - availableTools
+        - issuedTools
+        - missingTools
+        - totalTransactions
+        - recentTransactions
+        - categoryBreakdown
+
+    CategoryCount:
+      type: object
+      properties:
+        category:
+          type: string
+        count:
+          type: integer
+      required:
+        - category
+        - count
